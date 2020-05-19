@@ -4,9 +4,12 @@ import com.sise.community.dto.AccessTokenDTO;
 import com.sise.community.dto.GithubUser;
 import com.sise.community.provider.GithubProvider;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+
+import javax.servlet.http.HttpServletRequest;
 
 @Controller
 public class AuthorizeController {
@@ -14,17 +17,35 @@ public class AuthorizeController {
     @Autowired
     private GithubProvider githubProvider;
 
+    @Value("${github.client.id}")
+    private String clientId;
+
+    @Value("${github.client.secret}")
+    private String clientSecret;
+
+    @Value("${github.redirect.uri}")
+    private String redirectUri;
+
     @GetMapping("/callback")
     public String callback(@RequestParam(name = "code") String code,
-                           @RequestParam(name = "state") String state){
+                           @RequestParam(name = "state") String state,
+                           HttpServletRequest request){
         AccessTokenDTO accessTokenDTO = new AccessTokenDTO();
-        accessTokenDTO.setClient_id("fc75af6cafd60bc286a5");
-        accessTokenDTO.setClient_secret("02b799546b82fc0784de0e03681324451587e088");
+        accessTokenDTO.setClient_id(clientId);
+        accessTokenDTO.setClient_secret(clientSecret);
         accessTokenDTO.setCode(code);
-        accessTokenDTO.setRedirect_uri("http://localhost:8080/callback");
+        accessTokenDTO.setRedirect_uri(redirectUri);
+        accessTokenDTO.setState(state);
         String accessToken = githubProvider.getAccessToken(accessTokenDTO);
         GithubUser user = githubProvider.getUser(accessToken);
-        System.out.println(user.getName());
-        return "index";
+        if(user != null){
+            //登录成功，写cookie和session
+            request.getSession().setAttribute("user",user);
+            return "redirect:/";
+
+        }else {
+            //登录失败，重新登录
+            return "redirect:/";
+        }
     }
 }
